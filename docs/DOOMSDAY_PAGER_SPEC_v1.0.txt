@@ -1,0 +1,774 @@
+DOOMSDAY PAGER / ПЕЙДЖЕР СУДНОГО ДНЯ
+MVP SPECIFICATION v1.0
+Rok: 20.10.2026.
+
+============================================================
+1. SVRHA PROJEKTA
+============================================================
+
+Doomsday Pager je interni korporativni sistem za reagovanje na kritične incidente.
+
+Cilj sistema je da zameni haotičan lanac poziva i poruka tipa:
+- "Da li si video?"
+- "Ko je dežuran?"
+- "Ko radi na problemu?"
+- "Zašto mi niko nije javio?"
+
+Sistem se sastoji iz:
+1. Mobilne Pager aplikacije za zaposlene / administratore.
+2. Web Control Plane aplikacije za upravljanje incidentima.
+3. Backend API-ja.
+4. PostgreSQL baze podataka.
+5. API/integration sloja kako bi drugi timovi mogli da povežu svoje sisteme sa Pagerom.
+
+Osnovni princip:
+L2 ili administrator prijavljuje problem -> šalje se alert -> administratori procenjuju problem ->
+neko preuzima incident -> ostali dobijaju informaciju ko radi -> po potrebi se traži dodatna pomoć ->
+problem se rešava -> incident se zatvara -> kompletna istorija ostaje sačuvana.
+
+
+============================================================
+2. JEZICI
+============================================================
+
+Aplikacija mora da podržava:
+- English
+- Русский
+
+Korisnik bira jezik pre/prilikom prijavljivanja.
+Izbor jezika se čuva lokalno kako ne bi morao da ga bira pri svakom pokretanju.
+
+
+============================================================
+3. PRISTUP SISTEMU I NALOZI
+============================================================
+
+Ne postoji javna registracija.
+
+Postoji LOGIN.
+
+Nalozi zaposlenih se unapred kreiraju i dodeljuju unutar kompanije.
+System Administrators mogu da kreiraju i dodeljuju naloge zaposlenima i objašnjavaju im funkcionisanje aplikacije.
+
+Viši/Admin korisnik ima potpunu kontrolu nad sistemom i korisnicima.
+
+Za produkciju se kasnije može razmotriti SSO, ali nije potreban za MVP.
+
+
+============================================================
+4. ULOGE
+============================================================
+
+A) L2
+
+Može:
+- da se prijavi u sistem
+- da kreira incident
+- da prati status incidenta
+- da vidi relevantne incidente
+- da ostavlja komentare
+
+Ne može:
+- da zatvara incident
+- da upravlja kompletnim sistemom
+
+
+B) SYSTEM ADMINISTRATOR
+
+Može:
+- sve relevantne Pager funkcije
+- da kreira incident
+- da prima alarme
+- ACKNOWLEDGE
+- WORKING ON
+- UNAVAILABLE
+- REQUEST HELP
+- da radi na incidentu
+- da se priključi incidentu kao dodatni responder
+- da ostavlja komentare
+- da menja tehničke informacije incidenta kada je potrebno
+- da zatvara/rešava incident
+- da kreira i dodeljuje korisničke naloge
+
+
+C) ADMIN / HIGHER ADMINISTRATOR
+
+Ima potpunu kontrolu nad sistemom.
+
+Može:
+- sve što System Administrator može
+- upravljanje korisnicima
+- upravljanje ulogama i pravima
+- administrativna podešavanja
+- pregled kompletne istorije/audit loga
+- zatvaranje incidenata
+- kontrolu nad svim delovima sistema
+
+
+NAPOMENA:
+Prava će tehnički biti implementirana kroz RBAC (Role-Based Access Control).
+
+
+============================================================
+5. KREIRANJE INCIDENTA
+============================================================
+
+Incident mogu da kreiraju:
+- L2
+- System Administrator
+- Admin
+
+Obavezna polja:
+
+1. TITLE
+   Kratak naziv problema.
+
+2. DESCRIPTION
+   Opis onoga što je poznato o problemu.
+
+3. TYPE
+   Obavezna kategorija problema.
+
+   Predložene kategorije:
+   - Network
+   - Server
+   - Database
+   - Security
+   - Application
+   - Other
+
+   Ako osoba koja prijavljuje incident ne zna tehničku kategoriju:
+   -> bira OTHER.
+
+4. PRIORITY
+   Prioritet / ozbiljnost incidenta.
+
+   Predlog:
+   - LOW
+   - MEDIUM
+   - HIGH
+   - CRITICAL
+
+L2 nije dužan da zna tehnički uzrok problema niti koliko administratora je potrebno.
+
+Nakon kreiranja:
+- incident dobija status NEW
+- čuva se u bazi
+- relevantnim administratorima se šalje Pager alert
+
+
+============================================================
+6. PAGER ALERT I REAKCIJE
+============================================================
+
+Kada administrator primi incident, vidi najmanje:
+- Title
+- Description
+- Type
+- Priority
+- vreme nastanka
+- trenutno stanje incidenta
+
+Glavne reakcije su:
+
+
+ACKNOWLEDGE
+
+Značenje:
+"Video sam i pročitao alert."
+
+Ne znači da korisnik preuzima incident.
+
+
+WORKING ON
+
+Značenje:
+"Preuzimam incident i počinjem da radim na njemu."
+
+Nakon prve validne akcije WORKING ON:
+- administrator postaje Owner incidenta
+- status prelazi NEW -> IN PROGRESS
+- ostali relevantni administratori dobijaju informaciju ko je preuzeo incident
+
+Preuzimanje mora biti atomsko na backendu kako dva administratora ne bi istovremeno postala glavni Owner.
+
+
+UNAVAILABLE
+
+Značenje:
+"Video sam incident, ali trenutno ne mogu da pomognem."
+
+
+REQUEST HELP
+
+Koristi administrator koji već radi na incidentu kada proceni da mu je potrebna dodatna pomoć.
+
+VAŽNO:
+L2 NE određuje koliko administratora je potrebno.
+To može realno da proceni administrator tek nakon pregleda/provere problema.
+
+REQUEST HELP:
+- šalje novi alert relevantnim administratorima
+- objašnjava da neko već radi na incidentu
+- omogućava dodatnom administratoru da se priključi
+- originalni Owner ostaje glavni Owner incidenta
+
+Primer logike:
+Lazar radi incident -> shvati da je problem većih razmera -> REQUEST HELP ->
+drugi administratori dobijaju alert -> Ivan se priključuje -> Lazar ostaje Owner, Ivan postaje Responder.
+
+
+============================================================
+7. OWNER I RESPONDERS
+============================================================
+
+Incident može imati:
+
+OWNER
+- glavni administrator koji je preuzeo incident
+- koordinira rešavanje
+
+RESPONDERS
+- dodatni administratori koji pomažu
+- mogu se priključiti nakon REQUEST HELP
+
+Jedan incident zato može imati jednog Owner-a i više Responders-a.
+
+Ostali administratori treba da vide da je incident već preuzet kako bi znali da mogu da ostanu spremni za druge incidente.
+
+
+============================================================
+8. STATUSI INCIDENTA
+============================================================
+
+MVP ima tri statusa:
+
+NEW
+    |
+    v
+IN PROGRESS
+    |
+    v
+RESOLVED / CLOSED
+
+NEW:
+Incident je kreiran i alert je poslat, ali ga još niko nije preuzeo.
+
+IN PROGRESS:
+Administrator je izabrao WORKING ON i incident se aktivno rešava.
+
+RESOLVED / CLOSED:
+Problem je rešen i zadatak je završen.
+
+Ne pravimo odvojene RESOLVED i CLOSED statuse.
+Ako je problem rešen, incident je završen.
+
+Incident mogu da zatvore:
+- System Administrator
+- Admin
+
+L2 ne može da zatvori incident.
+
+
+============================================================
+9. KOMENTARI
+============================================================
+
+Svaki incident ima sekciju COMMENTS.
+
+Komentari služe za komunikaciju i tehničke informacije tokom rada.
+
+Primer:
+
+11:42 Lazar:
+VPN gateway responds locally, investigating routing.
+
+11:48 Ivan:
+Checked firewall. No configuration changes detected.
+
+11:55 Lazar:
+Problem identified. Working on affected service.
+
+Komentar je sadržaj koji korisnik ručno unosi.
+
+Komentari nisu isto što i Audit Log.
+
+
+============================================================
+10. HISTORY / AUDIT LOG
+============================================================
+
+Audit Log je obavezan.
+
+Sistem automatski beleži važne događaje.
+
+Primer:
+
+11:37 Incident created by L2
+11:37 Pager alert sent
+11:38 Ivan acknowledged
+11:38 Alex marked unavailable
+11:39 Lazar started working
+11:39 Status changed NEW -> IN PROGRESS
+11:47 Lazar requested help
+11:48 Ivan joined incident
+12:06 Lazar added comment
+12:14 Incident resolved by Lazar
+
+Audit Log treba da omogući naknadno razumevanje:
+- ko je kreirao incident
+- kada je kreiran
+- kome je poslat alert
+- ko je video alert
+- ko je bio unavailable
+- ko je preuzeo incident
+- ko se dodatno priključio
+- kada je tražena pomoć
+- ko je ostavljao komentare
+- kada su menjani statusi
+- ko je zatvorio incident
+- koliko je incident trajao
+
+
+============================================================
+11. CONTROL PLANE - WEB
+============================================================
+
+Control Plane je web aplikacija nalik Jira pristupu, ali fokusirana na incident response.
+
+Predložena navigacija:
+- Dashboard
+- Incidents
+- Users
+- Teams
+- History
+- Integrations
+- Settings
+
+Incident stranica treba da prikazuje:
+
+GLAVNI DEO:
+- Title
+- Description
+- Type
+- Priority
+- Comments
+- Activity / History
+
+SIDEBAR:
+- Status
+- Owner
+- Responders
+- Created by
+- Created at
+- Priority
+- Type
+
+Control Plane treba da se ažurira u realnom vremenu kada je moguće.
+
+Primer:
+administrator na telefonu izabere WORKING ON ->
+Control Plane bez ručnog refresh-a prikazuje novog Owner-a i IN PROGRESS.
+
+
+============================================================
+12. MOBILNA PAGER APLIKACIJA
+============================================================
+
+Mobilna aplikacija je namenjena brzoj reakciji zaposlenih/administratora.
+
+Mora da omogući:
+- Login
+- izbor EN/RU
+- primanje Pager alerta
+- pregled detalja incidenta
+- ACKNOWLEDGE
+- WORKING ON
+- UNAVAILABLE
+- REQUEST HELP za administratora koji radi incident
+- pregled trenutnih incidenata
+- komentare gde je primenljivo
+- informaciju kada drugi administrator preuzme incident
+
+Posebno važan deo MVP-a:
+Pouzdan i primetan alert kada aplikacija nije aktivno otvorena.
+
+Android je primarni fokus za demo/MVP.
+iOS podrška može biti kasnije proširenje.
+
+
+============================================================
+13. OSNOVNI TOK INCIDENTA
+============================================================
+
+1. L2 / System Administrator / Admin kreira incident.
+
+2. Unosi:
+   Title
+   Description
+   Type
+   Priority
+
+3. Klikne CREATE & ALERT.
+
+4. Backend:
+   - kreira incident
+   - status = NEW
+   - beleži događaj
+   - šalje alert relevantnim administratorima
+
+5. Administratori čitaju incident.
+
+6. Mogu da izaberu:
+   ACKNOWLEDGE
+   WORKING ON
+   UNAVAILABLE
+
+7. Administrator koji izabere WORKING ON:
+   - postaje Owner
+   - status -> IN PROGRESS
+
+8. Ostali administratori dobijaju obaveštenje:
+   incident je preuzeo određeni administrator.
+
+9. Owner rešava problem.
+
+10. Ako shvati da je problem većih razmera:
+    REQUEST HELP.
+
+11. Šalje se novi alert.
+
+12. Jedan ili više administratora mogu da se priključe kao Responders.
+
+13. Owner i Responders mogu da komuniciraju kroz komentare.
+
+14. Kada je problem rešen:
+    System Administrator ili Admin zatvara incident.
+
+15. Status -> RESOLVED / CLOSED.
+
+16. Cela istorija ostaje u Audit Log-u.
+
+
+============================================================
+14. RELACIJE - KONCEPTUALNI MODEL
+============================================================
+
+USER
+ |
+ +---- ima ROLE
+ |
+ +---- može kreirati INCIDENT
+ |
+ +---- može primiti ALERT
+ |
+ +---- može dati INCIDENT RESPONSE
+ |
+ +---- može biti OWNER incidenta
+ |
+ +---- može biti RESPONDER incidenta
+ |
+ +---- može napisati COMMENT
+ |
+ +---- generiše događaje u AUDIT LOG-u
+
+
+INCIDENT
+ |
+ +---- created_by -> USER
+ |
+ +---- owner -> USER (administrator)
+ |
+ +---- ima 0..N RESPONDERS
+ |
+ +---- ima 0..N COMMENTS
+ |
+ +---- ima 0..N ALERTS
+ |
+ +---- ima 0..N RESPONSES
+ |
+ +---- ima 0..N AUDIT LOG EVENTS
+
+
+ROLE
+ |
+ +---- određuje dozvole USER-a
+
+
+COMMENT
+ |
+ +---- pripada INCIDENT-u
+ +---- napisao ga USER
+
+
+ALERT
+ |
+ +---- pripada INCIDENT-u
+ +---- šalje se USER-u / ciljnoj grupi
+ +---- čuva vreme/status isporuke
+
+
+INCIDENT RESPONSE
+ |
+ +---- pripada INCIDENT-u
+ +---- pripada USER-u
+ +---- tip: ACKNOWLEDGE / WORKING_ON / UNAVAILABLE / JOIN
+
+
+AUDIT LOG
+ |
+ +---- pripada INCIDENT-u
+ +---- može biti povezan sa USER-om
+ +---- čuva tip događaja i vreme
+
+
+============================================================
+15. PREDLOG BAZE - GLAVNI ENTITETI
+============================================================
+
+Za MVP očekujemo najmanje sledeće tabele:
+
+users
+roles
+incidents
+incident_responders
+incident_responses
+comments
+alerts
+audit_logs
+
+Moguće kasnije:
+teams
+devices
+push_tokens
+integrations
+webhooks
+
+Tačna SQL struktura, ključevi i ograničenja definišu se tokom backend faze.
+
+
+============================================================
+16. INTEGRACIJE
+============================================================
+
+Originalni zahtev traži da drugi timovi mogu da ugrade Pager u svoje procese i integracije.
+
+Zato backend mora imati REST API.
+
+Primer mogućnosti:
+POST /api/incidents
+
+Spoljni autorizovani sistem može da kreira incident i aktivira Pager.
+
+Za MVP:
+- REST API je obavezan deo arhitekture
+- FastAPI automatska OpenAPI/Swagger dokumentacija
+- webhook podrška ako vreme dozvoli
+
+Moguća kasnija proširenja:
+- Jira
+- Grafana
+- monitoring sistemi
+- interni alati kompanije
+
+Integracije ne smeju ugroziti završetak osnovnog Pager flow-a.
+
+
+============================================================
+17. TEHNOLOŠKI STACK
+============================================================
+
+BACKEND:
+- Python
+- FastAPI
+- REST API
+- WebSocket za real-time funkcije gde je potrebno
+
+DATABASE:
+- PostgreSQL
+
+CONTROL PLANE:
+- React
+
+MOBILE:
+- React Native
+- Expo
+- Android kao primarni MVP/demo target
+
+VERSION CONTROL:
+- Git
+- GitHub
+
+DEVELOPMENT:
+- VS Code
+- Postman
+- pgAdmin
+
+SECRETS:
+- .env
+- .env se NE commit-uje na GitHub
+
+
+============================================================
+18. STRUKTURA PROJEKTA
+============================================================
+
+Predlog jednog GitHub repository-ja:
+
+doomsday-pager/
+|
++-- backend/
+|
++-- control-plane/
+|
++-- mobile/
+|
++-- docs/
+|   |
+|   +-- DOOMSDAY_PAGER_SPEC.txt
+|
++-- .gitignore
+|
++-- README.md
+
+
+============================================================
+19. BEZBEDNOST I TEHNIČKA PRAVILA
+============================================================
+
+- Nema javne registracije.
+- Lozinke se nikada ne čuvaju kao plain text.
+- Lozinke moraju biti hashovane.
+- Tajne i DB kredencijali idu u .env.
+- .env nikada ne ide na GitHub.
+- API endpointi proveravaju autentifikaciju i ulogu.
+- RBAC određuje dozvole.
+- WORKING ON / claim operacija mora biti atomska.
+- Audit log se ne sme tretirati kao običan komentar.
+- Važne akcije moraju biti evidentirane.
+
+
+============================================================
+20. MVP PRIORITETI
+============================================================
+
+PRIORITET 1 - CORE:
+- Login
+- Roles/RBAC
+- Create Incident
+- Incident list/detail
+- Pager alert
+- ACKNOWLEDGE
+- WORKING ON
+- UNAVAILABLE
+- Statusi
+- Owner
+- Comments
+- Close/Resolve
+- Audit Log
+
+PRIORITET 2:
+- REQUEST HELP
+- Multiple Responders
+- Real-time Control Plane updates
+- kvalitetan mobilni alert
+
+PRIORITET 3 / AKO OSTANE VREMENA:
+- naprednije integracije
+- webhooks
+- dodatni dashboard/statistika
+- dodatni UI polish
+- dodatne administrativne funkcije
+
+
+============================================================
+21. GLAVNI DEMO SCENARIO
+============================================================
+
+Demo treba jasno da pokaže vrednost proizvoda:
+
+1. L2 se prijavljuje na Control Plane.
+2. Kreira CRITICAL incident.
+3. Klikne CREATE & ALERT.
+4. Telefon administratora dobija primetan Pager alert.
+5. Administrator otvara incident.
+6. Klikne ACKNOWLEDGE ili direktno WORKING ON.
+7. Klikom WORKING ON postaje Owner.
+8. Control Plane se ažurira i prikazuje:
+   IN PROGRESS / Owner: administrator.
+9. Ostali administratori dobijaju informaciju da je incident preuzet.
+10. Owner shvata da mu treba pomoć i bira REQUEST HELP.
+11. Drugi administrator dobija alert i priključuje se kao Responder.
+12. Administratori ostavljaju komentare.
+13. Problem se rešava.
+14. Administrator zatvara incident.
+15. Control Plane prikazuje RESOLVED/CLOSED.
+16. Audit Log prikazuje kompletan tok događaja.
+
+Ovo je centralni end-to-end scenario koji mora pouzdano da radi do roka.
+
+
+============================================================
+22. ŠTA NIJE PRIORITET ZA MVP
+============================================================
+
+Ne trošiti vreme prerano na:
+- Kubernetes
+- kompleksnu cloud infrastrukturu
+- Redis ako nije potreban
+- komplikovan CI/CD
+- veliki broj eksternih integracija
+- napredni SSO
+- iOS ako ugrožava Android demo
+- nepotrebno komplikovanje statusa i workflow-a
+
+Prvo napraviti stabilan kompletan incident flow.
+
+
+============================================================
+23. DEFINICIJA USPEŠNOG MVP-a
+============================================================
+
+MVP je uspešan kada možemo uživo da demonstriramo:
+
+CREATE INCIDENT
+      |
+      v
+PAGER ALERT
+      |
+      v
+ACKNOWLEDGE / WORKING ON / UNAVAILABLE
+      |
+      v
+OWNER + IN PROGRESS
+      |
+      v
+REQUEST HELP (po potrebi)
+      |
+      v
+ADDITIONAL RESPONDER
+      |
+      v
+COMMENTS
+      |
+      v
+RESOLVED / CLOSED
+      |
+      v
+COMPLETE AUDIT HISTORY
+
+Sve kroz zajednički backend i PostgreSQL bazu, uz funkcionalan Web Control Plane i mobilni Pager.
+
+
+============================================================
+24. ROK
+============================================================
+
+Krajnji rok projekta:
+20.10.2026.
+
+Cilj je da 20.10. bude dan predaje/demonstracije, a ne dan velikih razvojnih promena.
+
+============================================================
+END OF MVP SPECIFICATION v1.0
+============================================================
