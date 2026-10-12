@@ -43,4 +43,17 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_
         )
 
     return user
-        
+
+def require_roles(*allowed_roles: str):
+
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+
+        if current_user.role.name not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You dont have permission to perform this aciton!"
+            )
+
+        return current_user
+
+    return role_checker
