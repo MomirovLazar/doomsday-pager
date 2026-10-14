@@ -245,3 +245,35 @@ class AuditLog(Base):
     )
 
     actor: Mapped["User | None"] = relationship()
+
+class IncidentAcknowledgement(Base):
+    __tablename__ = "incident_acknowledgements"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "incident_id",
+            "user_id",
+            name="uq_incident_acknowledgement"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    incident_id: Mapped[int] = mapped_column(
+        ForeignKey("incidents.id"),
+        nullable=False
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    acknowledged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    incident: Mapped["Incident"] = relationship()
+    user: Mapped["User"] = relationship()
