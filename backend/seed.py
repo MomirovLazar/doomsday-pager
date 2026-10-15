@@ -6,12 +6,14 @@ from models import Role, User
 from sqlalchemy import select
 from security import hash_password
 
+from constants import UserRole
+
 load_dotenv()
 
 db = SessionLocal()
 
 try:
-    role_names = ["L2", "SYSTEM_ADMIN", "ADMIN"]
+    role_names = list(UserRole)
 
     for role_name in role_names:
         existing_role = db.scalar(
@@ -22,7 +24,7 @@ try:
             db.add(Role(name=role_name))
 
     admin_role = db.scalar(
-        select(Role).where(Role.name == "ADMIN")
+        select(Role).where(Role.name == UserRole.ADMIN)
     )
 
     existing_admin = db.scalar(

@@ -1,0 +1,35 @@
+from enum import StrEnum
+
+class IncidentStatus(StrEnum):
+    NEW = "NEW"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+
+class IncidentPriority(StrEnum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+class IncidentType(StrEnum):
+    NETWORK = "NETWORK"
+    SERVER = "SERVER"
+    DATABASE = "DATABASE"
+    SECURITY = "SECURITY"
+    APPLICATION = "APPLICATION"
+    OTHER = "OTHER"
+
+class UserRole(StrEnum):
+    L2 = "L2"
+    SYSTEM_ADMIN = "SYSTEM_ADMIN"
+    ADMIN = "ADMIN"
+
+
+class AuditAction(StrEnum):
+    INCIDENT_CREATED = "INCIDENT_CREATED"
+    INCIDENT_CLAIMED = "INCIDENT_CLAIMED"
+    INCIDENT_ACKNOWLEDGED = "INCIDENT_ACKNOWLEDGED"
+    RESPONDER_JOINED = "RESPONDER_JOINED"
+    HELP_REQUESTED = "HELP_REQUESTED"
+    COMMENT_ADDED = "COMMENT_ADDED"
+    INCIDENT_RESOLVED = "INCIDENT_RESOLVED"

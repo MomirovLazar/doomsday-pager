@@ -10,6 +10,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 
+from constants import IncidentStatus
+
 class Role(Base):
     __tablename__ = "roles"
 
@@ -94,7 +96,7 @@ class Incident(Base):
 
     status: Mapped[str] = mapped_column(
         String(20),
-        default="NEW",
+        default=IncidentStatus.NEW,
         nullable=False
     )
 

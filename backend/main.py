@@ -1,12 +1,24 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import (
+    Depends, 
+    FastAPI, 
+    HTTPException, 
+    status
+
+)
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from auth import authenticate_user
 from database import get_db
-from schemas import LoginRequest, IncidentCreate
+
+from schemas import (
+    LoginRequest, 
+    IncidentCreate,
+    CommentCreate
+)
 
 from jwt_handler import create_access_token
+
 from dependencies import get_current_user, require_roles
 from models import (
     User, 
@@ -15,6 +27,12 @@ from models import (
     Comment, 
     AuditLog,
     IncidentAcknowledgement    
+)
+
+from constants import (
+    IncidentStatus,
+    UserRole,
+    AuditAction
 )
 
 app = FastAPI()
@@ -57,7 +75,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @app.get("/admin-only")
 def admin_only(
-    current_user: User = Depends(require_roles("ADMIN"))
+    current_user: User = Depends(require_roles(UserRole.ADMIN))
 ):
     return {
         "message": "Welcome, Admin!",
@@ -66,14 +84,14 @@ def admin_only(
     }
 
 @app.post("/incidents", status_code=status.HTTP_201_CREATED)
-def create_incident(incident_data: IncidentCreate, db: Session=Depends(get_db), current_user: User=Depends(require_roles("L2", "SYSTEM_ADMIN", "ADMIN"))):
+def create_incident(incident_data: IncidentCreate, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.L2, UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
 
     incident = Incident(
         title=incident_data.title.strip(),
         description=incident_data.description.strip(),
         type=incident_data.type,
         priority=incident_data.priority,
-        status="NEW",
+        status=IncidentStatus.NEW,
         created_by_id=current_user.id,
         owner_id = None 
     )
@@ -85,7 +103,7 @@ def create_incident(incident_data: IncidentCreate, db: Session=Depends(get_db), 
         audit = AuditLog(
             incident_id=incident.id,
             actor_id=current_user.id,
-            action="INCIDENT_CREATED",
+            action=AuditAction.INCIDENT_CREATED,
             details="Incident created"
         )
 
@@ -94,6 +112,7 @@ def create_incident(incident_data: IncidentCreate, db: Session=Depends(get_db), 
 
     except Exception:
         db.rollback()
+        raise
 
     db.refresh(incident)
 
@@ -223,17 +242,17 @@ def get_incident(incident_id: int, db: Session=Depends(get_db), current_user: Us
     }
 
 @app.post("/incidents/{incident_id}/claim")
-def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles("SYSTEM_ADMIN", "ADMIN"))):
+def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
 
     try:
         statment = (
             update(Incident).where(
                 Incident.id == incident_id,
                 Incident.owner_id.is_(None),
-                Incident.status == "NEW"
+                Incident.status == IncidentStatus.NEW
             ).values(
                 owner_id = current_user.id,
-                status="IN_PROGRESS"
+                status=IncidentStatus.IN_PROGRESS
             ).returning(
                 Incident.id
             )
@@ -258,7 +277,7 @@ def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: 
         audit = AuditLog(
             incident_id=claimed_id,
             actor_id=current_user.id,
-            action="INCIDENT_CLAIMED",
+            action=AuditAction.INCIDENT_CLAIMED,
             details="Incident claimed by responder"
         )
 
@@ -271,7 +290,7 @@ def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: 
 
     return{
         "incident_id": claimed_id,
-        "status": "IN_PROGRESS",
+        "status": IncidentStatus.IN_PROGRESS,
         "owner": {  
             "id": current_user.id,
             "username": current_user.username
@@ -315,7 +334,7 @@ def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_
         audit = AuditLog(
             incident_id=incident_id,
             actor_id=current_user.id,
-            action="INCIDENT_ACKNOWLEDGED",
+            action=AuditAction.INCIDENT_ACKNOWLEDGED,
             details="Incident acknowledged by user"
         )
 
@@ -337,3 +356,178 @@ def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_
         "message": "Incident acknowledged successfully"
     }
 
+@app.post("/incidents/{incident_id}/join")
+def join_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
+
+    try:
+        incident = db.get(Incident, incident_id)
+
+        if incident is None:
+            raise HTTPException(
+                status_code=404, 
+                detail="Incident not found"
+            )
+
+        if incident.status != IncidentStatus.IN_PROGRESS:
+            raise HTTPException(
+                status_code=409,
+                detail="Incident not in progress"
+            )
+
+        if incident.owner_id == current_user.id:
+            raise HTTPException(
+                status_code=409,
+                detail="Owner is already responsible for this incident"
+            )
+
+        existing_responder = db.scalar(
+            select(IncidentResponder).where(
+                IncidentResponder.incident_id == incident_id,
+                IncidentResponder.user_id == current_user.id
+            )
+        )
+
+        if existing_responder is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="User already joined this incident"
+            )
+
+        responder = IncidentResponder(
+            incident_id = incident_id,
+            user_id = current_user.id
+        )
+
+        db.add(responder)
+
+        audit = AuditLog(
+            incident_id=incident_id,
+            actor_id = current_user.id,
+            action=AuditAction.RESPONDER_JOINED,
+            details="User joined incident as responder"
+        )
+
+        db.add(audit)
+        db.commit()
+        db.refresh(responder)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "incident_id": incident_id,
+        "responder": {
+            "id": current_user.id,
+            "username": current_user.username
+        },
+        "joined_at": responder.joined_at,
+        "message": "Successfully joined incident"
+    }
+
+@app.post("/incidents/{incident_id}/request-help")
+def request_help(incident_id: int, db: Session=Depends(get_db), current_user: User = Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
+
+    try:
+        incident = db.scalar(
+            select(Incident).where(Incident.id == incident_id).with_for_update()
+        )
+
+        if incident is None:
+            raise HTTPException(
+                status_code=404, 
+                detail="Incident not found"
+            )
+
+        if incident.status != IncidentStatus.IN_PROGRESS:
+            raise HTTPException(
+                status_code=409,
+                detail="Incident is not in progress"
+            )
+
+        if incident.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only incident owner can request help"
+            )
+
+        existing_request = db.scalar(
+            select(AuditLog).where(
+                AuditLog.incident_id == incident_id,
+                AuditLog.action == AuditAction.HELP_REQUESTED
+            )
+        )
+
+        if existing_request is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Help has already been requested"
+            )
+
+        audit = AuditLog(
+            incident_id=incident_id,
+            actor_id=current_user.id,
+            action=AuditAction.HELP_REQUESTED,
+            details="Incident owner requested additional help"
+        )
+
+        db.add(audit)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "incident_id": incident_id,
+        "help_requested": True,
+        "requested_by": {
+            "id": current_user.id,
+            "username": current_user.username
+        },
+        "message": "Help requested successfully"
+    }
+
+@app.post("/incidents/{incident_id}/comments", status_code=status.HTTP_201_CREATED)
+def add_comment(incident_id: int, comment_data: CommentCreate, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+
+    try:
+        incident = db.get(Incident, incident_id)
+
+        if incident is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Incident not found"
+            )
+
+        comment = Comment(
+            incident_id=incident_id,
+            author_id=current_user.id,
+            content=comment_data.content
+        )
+
+        db.add(comment)
+        db.commit()
+
+        audit = AuditLog(
+            incident_id=incident_id,
+            actor_id=current_user.id,
+            action=AuditAction.COMMENT_ADDED,
+            details=f"Comment added: {comment.id}"
+        )
+
+        db.add(audit)
+        db.commit()
+        db.refresh(comment)
+
+    except Exception:
+        db.rollback
+        raise 
+
+    return {
+        "id": comment.id,
+        "incident_id": incident_id,
+        "author": current_user.username,
+        "content": comment.content,
+        "created_at": comment.created_at
+    }
