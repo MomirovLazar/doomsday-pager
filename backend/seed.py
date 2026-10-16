@@ -23,6 +23,8 @@ try:
         if existing_role is None:
             db.add(Role(name=role_name))
 
+    db.flush()
+
     admin_role = db.scalar(
         select(Role).where(Role.name == UserRole.ADMIN)
     )

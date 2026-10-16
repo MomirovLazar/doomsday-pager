@@ -271,9 +271,19 @@ class IncidentAcknowledgement(Base):
         nullable=False
     )
 
-    acknowledged_at: Mapped[datetime] = mapped_column(
+    response: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False  
+    )
+
+    responded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=False
     )
 

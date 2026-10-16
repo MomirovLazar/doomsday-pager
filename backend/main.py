@@ -5,6 +5,8 @@ from fastapi import (
     status
 
 )
+
+from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -31,6 +33,7 @@ from models import (
 
 from constants import (
     IncidentStatus,
+    IncidentResponse,
     UserRole,
     AuditAction
 )
@@ -214,6 +217,25 @@ def get_incident(incident_id: int, db: Session=Depends(get_db), current_user: Us
             "created_at": event.created_at
         })
 
+    responses = db.scalars(
+        select(IncidentAcknowledgement)
+        .where(IncidentAcknowledgement.incident_id == incident_id)
+        .options(selectinload(IncidentAcknowledgement.user))
+    ).all()
+
+    response_data = []
+
+    for item in responses:
+        response_data.append({
+            "user": {
+                "id": item.user.id,
+                "username": item.user.username
+            },
+            "response": item.response,
+            "responded_at": item.responded_at,
+            "acknowledged_at": item.acknowledged_at
+        })
+
     owner_data = None   
 
     if incident.owner is not None:
@@ -221,6 +243,20 @@ def get_incident(incident_id: int, db: Session=Depends(get_db), current_user: Us
             "id": incident.owner.id,
             "username": incident.owner.username
         }
+
+    my_response = None
+
+    for item in response_data:
+        if item["user"]["id"] == current_user.id:
+            my_response = item["response"]
+            break
+
+    help_requested = False
+
+    for event in incident.audit_logs:
+        if event.action == AuditAction.HELP_REQUESTED:
+            help_requested = True
+            break
 
     return {
         "id": incident.id,
@@ -238,7 +274,10 @@ def get_incident(incident_id: int, db: Session=Depends(get_db), current_user: Us
         "comments": comments,
         "history": history,
         "created_at": incident.created_at,
-        "resolved_at": incident.resolved_at
+        "resolved_at": incident.resolved_at,
+        "responses": response_data,
+        "my_response": my_response,
+        "help_requested": help_requested
     }
 
 @app.post("/incidents/{incident_id}/claim")
@@ -298,11 +337,12 @@ def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: 
         "message": "Incident claimed successfully"
     }
 
-@app.post("/incidents/{incident_id}/acknowledge")
-def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+def respond_to_incident(incident_id: int, response: IncidentResponse, db:Session, current_user: User):
 
     try:
-        incident = db.get(Incident, incident_id)
+        incident = db.scalar(
+            select(Incident).where(Incident.id == incident_id).with_for_update()
+        )
 
         if incident is None:
             raise HTTPException(
@@ -310,51 +350,103 @@ def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_
                 detail="Incident not found"
             )
 
-        existing_ack = db.scalar(
+        existing_response = db.scalar(
             select(IncidentAcknowledgement).where(
                 IncidentAcknowledgement.incident_id == incident_id,
                 IncidentAcknowledgement.user_id == current_user.id
             )
         )
 
-        if existing_ack is not None:
-            raise HTTPException(
-                status_code=409,
-                detail="Incident already acknowledged"
+        if existing_response is not None:
+            if existing_response.response == response:
+                db.commit()
+
+                return {
+                    "incident_id": incident_id,
+                    "response": existing_response.response,
+                    "responded_at": existing_response.responded_at,
+                    "acknowledged_at": existing_response.acknowledged_at,
+                    "message": "Response already recorded"
+                }
+
+            if existing_response.response == IncidentResponse.ACKNOWLEDGED:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Acknowledged response cannot be change to unavailable"
+                )
+
+        now = datetime.now(timezone.utc)
+
+        if existing_response is None:
+            existing_response = IncidentAcknowledgement(
+                incident_id=incident_id,
+                user_id=current_user.id,
+                response=response,
+                responded_at=now,
+                acknowledged_at=(
+                    now if response == IncidentResponse.ACKNOWLEDGED else None
+                )
             )
 
-        acknowledgement = IncidentAcknowledgement(
-            incident_id = incident_id,
-            user_id = current_user.id
+            db.add(existing_response)
+
+        else:
+            existing_response.response = response
+            existing_response.responded_at = now
+
+            if response == IncidentResponse.ACKNOWLEDGED:
+                existing_response.acknowledged_at = now
+
+        audit_action = (
+            AuditAction.INCIDENT_ACKNOWLEDGED
+
+            if response == IncidentResponse.ACKNOWLEDGED
+            else AuditAction.INCIDENT_UNAVAILABLE
         )
 
-        db.add(acknowledgement)
-        db.flush()
-
-        audit = AuditLog(
-            incident_id=incident_id,
-            actor_id=current_user.id,
-            action=AuditAction.INCIDENT_ACKNOWLEDGED,
-            details="Incident acknowledged by user"
+        db.add(
+            AuditLog(
+                incident_id=incident_id,
+                actor_id=current_user.id,
+                action=audit_action,
+                details=f"User responded: {response.value}"
+            )
         )
 
-        db.add(audit)
         db.commit()
-        db.refresh(acknowledgement)
+        db.refresh(existing_response)
+
+        return {
+            "incident_id": incident_id,
+            "response": existing_response.response,
+            "responded_at": existing_response.responded_at,
+            "acknowledged_at": existing_response.acknowledged_at,
+            "message": "Incident response recorded successfully"
+        }
 
     except Exception:
         db.rollback()
-        raise   
+        raise
 
-    return {
-        "incident_id": incident_id,
-        "acknowledged_by": {
-            "id": current_user.id,
-            "username": current_user.username
-        },
-        "acknowledged_at" : acknowledgement.acknowledged_at,
-        "message": "Incident acknowledged successfully"
-    }
+@app.post("/incidents/{incident_id}/acknowledge")
+def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+
+    return respond_to_incident(
+        incident_id=incident_id,
+        response=IncidentResponse.ACKNOWLEDGED,
+        db=db,
+        current_user=current_user
+    )
+
+@app.post("/incidents/{incident_id}/unavailable")
+def unavailable_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+
+    return respond_to_incident(
+        incident_id=incident_id,
+        response=IncidentResponse.UNAVAILABLE,
+        db=db,
+        current_user=current_user
+    )
 
 @app.post("/incidents/{incident_id}/join")
 def join_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
@@ -507,7 +599,7 @@ def add_comment(incident_id: int, comment_data: CommentCreate, db: Session=Depen
         )
 
         db.add(comment)
-        db.commit()
+        db.flush()
 
         audit = AuditLog(
             incident_id=incident_id,
@@ -521,7 +613,7 @@ def add_comment(incident_id: int, comment_data: CommentCreate, db: Session=Depen
         db.refresh(comment)
 
     except Exception:
-        db.rollback
+        db.rollback()
         raise 
 
     return {
@@ -530,4 +622,58 @@ def add_comment(incident_id: int, comment_data: CommentCreate, db: Session=Depen
         "author": current_user.username,
         "content": comment.content,
         "created_at": comment.created_at
+    }
+
+@app.post("/incidents/{incident_id}/resolve")
+def resolve_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
+
+    try:
+        incident = db.scalar(
+            select(Incident).where(Incident.id == incident_id).with_for_update()
+        )
+
+        if incident is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Incident not found"
+            )
+
+        if incident.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the incident owner can resolve it"
+            )
+
+        if incident.status != IncidentStatus.IN_PROGRESS:
+            raise HTTPException(
+                status_code=409,
+                detail="Only incidents in progress can be resolved"
+            )
+
+        incident.status = IncidentStatus.RESOLVED
+        incident.resolved_at = datetime.now(timezone.utc)
+
+        audit = AuditLog(
+            incident_id=incident.id,
+            actor_id=current_user.id,
+            action=AuditAction.INCIDENT_RESOLVED,
+            details="Incident resolved by owner"
+        )
+
+        db.add(audit)
+        db.commit()
+        db.refresh(audit)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "incident_id": incident.id,
+        "status": incident.status,
+        "resolved_at": incident.resolved_at,
+        "resolved_by": {
+            "id": current_user.id,
+            "username": current_user.username
+        }
     }
