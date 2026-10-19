@@ -215,19 +215,20 @@ def get_incident(incident_id: int, db: Session=Depends(get_db), current_user: Us
 
     history = []
 
-    for event in sorted(incident.audit_logs, key=lambda item: item.created_at):
-        history.append({
-            "id": event.id,
-            "action": event.action,
-            "performed_by": (
-                event.actor.username
+    if current_user.role.name == UserRole.ADMIN:
+        for event in sorted(incident.audit_logs, key=lambda item: item.created_at):
+            history.append({
+                "id": event.id,
+                "action": event.action,
+                "performed_by": (
+                    event.actor.username
 
-                if event.actor is not None
-                else "SYSTEM"
-            ),
-            "details": event.details,
-            "created_at": event.created_at
-        })
+                    if event.actor is not None
+                    else "SYSTEM"
+                ),
+                "details": event.details,
+                "created_at": event.created_at
+            })
 
     responses = db.scalars(
         select(IncidentAcknowledgement)
