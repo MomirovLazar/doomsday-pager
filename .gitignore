@@ -1,14 +1,18 @@
-# Environment variables
 .env
-*.env
-
-# Python virtual environments
+.env.*
+!.env.example
 .venv/
 venv/
-
-# Python cache
 __pycache__/
-*.py[cod]
+*.pyc
 
-#Copies
-backups/
+node_modules/
+dist/
+
+.gradle/
+**/build/
+local.properties
+*.jks
+*.keystore
+
+.idea/
