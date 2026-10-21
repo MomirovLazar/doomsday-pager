@@ -1,18 +1,37 @@
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
+
+# Python
 .venv/
 venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
 
+# React / Vite
 node_modules/
 dist/
+coverage/
 
+# Android / Gradle
 .gradle/
 **/build/
 local.properties
+*.apk
+*.aab
 *.jks
 *.keystore
 
+# IDE local settings
 .idea/
+*.iml
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Local backups
+backups/
