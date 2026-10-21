@@ -18,6 +18,20 @@ from models import (
 
 from schemas import IncidentCreate, CommentCreate
 
+def get_locked_incident(incident_id: int, db: Session,) -> Incident:
+
+   incident = db.scalar(
+       select(Incident).where(Incident.id == incident_id).with_for_update()
+   ) 
+
+   if incident is None:
+       raise HTTPException(
+           status_code=status.HTTP_404_NOT_FOUND,
+           detail="Incident not found",
+       )
+
+   return incident
+
 def create_incident_record(incident_data: IncidentCreate, db: Session, current_user: User) -> dict:
 
     incident = Incident(
@@ -48,8 +62,6 @@ def create_incident_record(incident_data: IncidentCreate, db: Session, current_u
         db.rollback()
         raise
 
-    db.refresh(incident)
-
     return {
         "id": incident.id,
         "title": incident.title,
@@ -63,15 +75,24 @@ def create_incident_record(incident_data: IncidentCreate, db: Session, current_u
 
 def get_incident_details(incident_id: int, db: Session, current_user: User,) -> dict:
     
-    incident = db.scalar(
-            select(Incident).options(
-                selectinload(Incident.creator),
-                selectinload(Incident.owner),
-                selectinload(Incident.responders).selectinload(IncidentResponder.user),
-                selectinload(Incident.comments).selectinload(Comment.author),
-                selectinload(Incident.audit_logs).selectinload(AuditLog.actor)
-            ).where(Incident.id == incident_id)
+    is_admin = current_user.role.name == UserRole.ADMIN
+
+    load_options = [
+        selectinload(Incident.creator),
+        selectinload(Incident.owner),
+        selectinload(Incident.responders).selectinload(IncidentResponder.user),
+        selectinload(Incident.comments).selectinload(Comment.author),
+        selectinload(Incident.audit_logs),
+    ]
+
+    if is_admin:
+        load_options.append(
+            selectinload(Incident.audit_logs).selectinload(AuditLog.actor)
         )
+
+    incident = db.scalar(
+        select(Incident).options(*load_options).where(Incident.id == incident_id)
+    )
     
     if incident is None:
         raise HTTPException(
@@ -99,7 +120,7 @@ def get_incident_details(incident_id: int, db: Session, current_user: User,) -> 
 
     history = []
 
-    if current_user.role.name == UserRole.ADMIN:
+    if is_admin:
         for event in sorted(incident.audit_logs, key=lambda item: item.created_at):
             history.append({
                 "id": event.id,
@@ -141,19 +162,17 @@ def get_incident_details(incident_id: int, db: Session, current_user: User,) -> 
             "username": incident.owner.username
         }
 
-    my_response = None
+    my_response = next((
+       item["response"]
+       for item in response_data
+       if item["user"]["id"] == current_user.id
+    ), None
+   )
 
-    for item in response_data:
-        if item["user"]["id"] == current_user.id:
-            my_response = item["response"]
-            break
-
-    help_requested = False
-
-    for event in incident.audit_logs:
-        if event.action == AuditAction.HELP_REQUESTED:
-            help_requested = True
-            break
+    help_requested = any(
+        event.action == AuditAction.HELP_REQUESTED
+        for event in incident.audit_logs
+    )
 
     return {
         "id": incident.id,
@@ -179,7 +198,7 @@ def get_incident_details(incident_id: int, db: Session, current_user: User,) -> 
 
 def claim_incident_record(incident_id:int, db: Session, current_user: User,) -> dict:
     try:
-        statment = (
+        statement = (
             update(Incident).where(
                 Incident.id == incident_id,
                 Incident.owner_id.is_(None),
@@ -192,7 +211,7 @@ def claim_incident_record(incident_id:int, db: Session, current_user: User,) -> 
             )
         )
 
-        claimed_id = db.scalar(statment)
+        claimed_id = db.scalar(statement)
 
         if claimed_id is None:
             incident = db.get(Incident, incident_id)
@@ -235,15 +254,7 @@ def claim_incident_record(incident_id:int, db: Session, current_user: User,) -> 
 def respond_to_incident(incident_id: int, response: IncidentResponse, db:Session, current_user: User):
 
     try:
-        incident = db.scalar(
-            select(Incident).where(Incident.id == incident_id).with_for_update()
-        )
-
-        if incident is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Incident not found"
-            )
+        incident = get_locked_incident(incident_id, db)
 
         existing_response = db.scalar(
             select(IncidentAcknowledgement).where(
@@ -325,13 +336,7 @@ def respond_to_incident(incident_id: int, response: IncidentResponse, db:Session
 
 def join_incident_record(incident_id: int, db: Session, current_user: User,):
     try:
-        incident = db.get(Incident, incident_id)
-
-        if incident is None:
-            raise HTTPException(
-                status_code=404, 
-                detail="Incident not found"
-            )
+        incident = get_locked_incident(incident_id, db)
 
         if incident.status != IncidentStatus.IN_PROGRESS:
             raise HTTPException(
@@ -433,15 +438,7 @@ def get_incidents_list(db: Session) -> list[dict]:
 
 def request_incident_help(incident_id: int, db: Session, current_user: User,):
     try:
-        incident = db.scalar(
-            select(Incident).where(Incident.id == incident_id).with_for_update()
-        )
-
-        if incident is None:
-            raise HTTPException(
-                status_code=404, 
-                detail="Incident not found"
-            )
+        incident = get_locked_incident(incident_id, db)
 
         if incident.status != IncidentStatus.IN_PROGRESS:
             raise HTTPException(
@@ -536,15 +533,7 @@ def add_incident_comment(incident_id: int, comment_data: CommentCreate, db: Sess
 
 def resolve_incident_record(incident_id: int, db: Session, current_user: User,):
     try:
-        incident = db.scalar(
-            select(Incident).where(Incident.id == incident_id).with_for_update()
-        )
-
-        if incident is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Incident not found"
-            )
+        incident = get_locked_incident(incident_id, db)
 
         if incident.owner_id != current_user.id:
             raise HTTPException(
@@ -570,7 +559,6 @@ def resolve_incident_record(incident_id: int, db: Session, current_user: User,):
 
         db.add(audit)
         db.commit()
-        db.refresh(audit)
 
     except Exception:
         db.rollback()
