@@ -1,19 +1,18 @@
 """Tests for authentication security"""
 
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException
-
-from dependencies import authentication_error, get_current_user
-
-from types import SimpleNamespace
-
-from constants import UserRole
-from dependencies import require_roles
-
 from fastapi.routing import APIRoute
 
+from constants import UserRole
+from dependencies import (
+    authentication_error,
+    get_current_user,
+    require_roles,
+)
 from routers.incidents import router as incidents_router
 
 def test_authentication_error_returns_401():
@@ -31,67 +30,6 @@ def test_missing_token_returns_401():
 
     assert exc.value.status_code == 401
     db.scalar.assert_not_called()
-
-@pytest.mark.parametrize(
-    "role_name",
-    ["L2", "SYSTEM_ADMIN", "ADMIN"],
-)
-def test_all_roles_can_access_common_actions(role_name):
-    user = SimpleNamespace(
-        role=SimpleNamespace(name=role_name)
-    )
-
-    checker = require_roles(
-        "L2",
-        "SYSTEM_ADMIN",
-        "ADMIN",
-    )
-
-    result = checker(user)
-
-    assert result is user
-
-
-@pytest.mark.parametrize(
-    "role_name",
-    ["SYSTEM_ADMIN", "ADMIN"],
-)
-def test_privileged_roles_are_allowed(role_name):
-    user = SimpleNamespace(
-        role=SimpleNamespace(name=role_name)
-    )
-
-    checker = require_roles("SYSTEM_ADMIN", "ADMIN")
-
-    result = checker(user)
-
-    assert result is user
-
-
-def test_l2_cannot_access_privileged_actions():
-    user = SimpleNamespace(
-        role=SimpleNamespace(name="L2")
-    )
-
-    checker = require_roles("SYSTEM_ADMIN", "ADMIN")
-
-    with pytest.raises(HTTPException) as exc:
-        checker(user)
-
-    assert exc.value.status_code == 403
-
-
-def test_only_admin_can_access_admin_routes():
-    system_admin = SimpleNamespace(
-        role=SimpleNamespace(name="SYSTEM_ADMIN")
-    )
-
-    checker = require_roles("ADMIN")
-
-    with pytest.raises(HTTPException) as exc:
-        checker(system_admin)
-
-    assert exc.value.status_code == 403
 
 def make_user(role_name):
     return SimpleNamespace(
