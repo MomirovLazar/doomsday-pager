@@ -1,4 +1,3 @@
-
 """API endpoints for incident management"""
 
 from fastapi import APIRouter, Depends, status
@@ -59,7 +58,7 @@ def claim_incident(incident_id: int, db: Session=Depends(get_db), current_user: 
     )
     
 @router.post("/{incident_id}/acknowledge")
-def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
 
     return respond_to_incident(
         incident_id=incident_id,
@@ -69,7 +68,7 @@ def acknowledge_incident(incident_id: int, db: Session=Depends(get_db), current_
     )
 
 @router.post("/{incident_id}/unavailable")
-def unavailable_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+def unavailable_incident(incident_id: int, db: Session=Depends(get_db), current_user: User=Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.ADMIN))):
 
     return respond_to_incident(
         incident_id=incident_id,

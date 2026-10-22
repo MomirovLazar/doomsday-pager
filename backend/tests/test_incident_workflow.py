@@ -7,12 +7,13 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 
-from constants import IncidentStatus
+from constants import IncidentStatus, IncidentResponse
 from services.incident_service import (
     claim_incident_record,
     join_incident_record,
     request_incident_help,
     resolve_incident_record,
+    respond_to_incident
 )
 
 @pytest.fixture
@@ -284,6 +285,86 @@ def test_resolve_incident_wrong_status(db, user):
 
     with pytest.raises(HTTPException) as exc:
         resolve_incident_record(42, db, user)
+
+    assert exc.value.status_code == 409
+    db.rollback.assert_called_once()
+    db.commit.assert_not_called()
+
+def test_cannot_respond_to_resolved_incident(db, user):
+    incident = SimpleNamespace(
+        id=42,
+        status=IncidentStatus.RESOLVED,
+    )
+
+    db.scalar.return_value = incident
+
+    with pytest.raises(HTTPException) as exc:
+        respond_to_incident(
+            incident_id=42,
+            response=IncidentResponse.ACKNOWLEDGED,
+            db=db,
+            current_user=user,
+        )
+
+    assert exc.value.status_code == 409
+    db.rollback.assert_called_once()
+    db.commit.assert_not_called()
+
+def test_duplicate_ack_does_not_create_new_record(db, user):
+    responded_at = "2026-10-22T12:00:00"
+
+    incident = SimpleNamespace(
+        id=42,
+        status=IncidentStatus.NEW,
+    )
+
+    existing_response = SimpleNamespace(
+        response=IncidentResponse.ACKNOWLEDGED,
+        responded_at=responded_at,
+        acknowledged_at=responded_at,
+    )
+
+    db.scalar.side_effect = [
+        incident,
+        existing_response,
+    ]
+
+    result = respond_to_incident(
+        incident_id=42,
+        response=IncidentResponse.ACKNOWLEDGED,
+        db=db,
+        current_user=user,
+    )
+
+    assert result["message"] == "Response already recorded"
+    assert result["response"] == IncidentResponse.ACKNOWLEDGED
+
+    db.add.assert_not_called()
+    db.commit.assert_called_once()
+    db.rollback.assert_not_called()
+
+def test_ack_cannot_change_to_unavailable(db, user):
+    incident = SimpleNamespace(
+        id=42,
+        status=IncidentStatus.NEW,
+    )
+
+    existing_response = SimpleNamespace(
+        response=IncidentResponse.ACKNOWLEDGED,
+    )
+
+    db.scalar.side_effect = [
+        incident,
+        existing_response,
+    ]
+
+    with pytest.raises(HTTPException) as exc:
+        respond_to_incident(
+            incident_id=42,
+            response=IncidentResponse.UNAVAILABLE,
+            db=db,
+            current_user=user,
+        )
 
     assert exc.value.status_code == 409
     db.rollback.assert_called_once()

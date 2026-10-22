@@ -256,6 +256,12 @@ def respond_to_incident(incident_id: int, response: IncidentResponse, db:Session
     try:
         incident = get_locked_incident(incident_id, db)
 
+        if incident.status == IncidentStatus.RESOLVED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot respond to a resolved incident"
+            )
+
         existing_response = db.scalar(
             select(IncidentAcknowledgement).where(
                 IncidentAcknowledgement.incident_id == incident_id,
