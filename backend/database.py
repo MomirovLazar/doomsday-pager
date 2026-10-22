@@ -1,13 +1,15 @@
-import os 
-from dotenv import load_dotenv
+"""Database engine and session management"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-load_dotenv()
+from config import settings
 
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+)
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -15,15 +17,15 @@ SessionLocal = sessionmaker(
     autocommit=False,
 )
 
+
 class Base(DeclarativeBase):
     pass
 
-def get_db(): 
+
+def get_db():
     db = SessionLocal()
 
     try:
         yield db
-
     finally:
         db.close()
-

@@ -1,62 +1,67 @@
-import os 
-from dotenv import load_dotenv
+"""Initialize database roles and the default administrator"""
 
-from database import SessionLocal
-from models import Role, User
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import select
-from security import hash_password
 
 from constants import UserRole
+from database import SessionLocal
+from models import Role, User
+from security import hash_password
 
-load_dotenv()
 
-db = SessionLocal()
+def seed_database() -> None:
+    load_dotenv()
 
-try:
-    role_names = list(UserRole)
+    db = SessionLocal()
 
-    for role_name in role_names:
-        existing_role = db.scalar(
-            select(Role).where(Role.name == role_name)
+    try:
+        for role_name in UserRole:
+            existing_role = db.scalar(
+                select(Role).where(Role.name == role_name)
+            )
+
+            if existing_role is None:
+                db.add(Role(name=role_name))
+
+        db.flush()
+
+        admin_role = db.scalar(
+            select(Role).where(Role.name == UserRole.ADMIN)
         )
 
-        if existing_role is None:
-            db.add(Role(name=role_name))
+        if admin_role is None:
+            raise RuntimeError("ADMIN role does not exist")
 
-    db.flush()
-
-    admin_role = db.scalar(
-        select(Role).where(Role.name == UserRole.ADMIN)
-    )
-
-    existing_admin = db.scalar(
-        select(User).where(User.username == "admin")
-    )
-
-    admin_password = os.getenv("INITIAL_ADMIN_PASSWORD")
-
-    if admin_password is None:
-        raise RuntimeError("INITIAL_ADMIN_PASSWORD is not set")
-
-    if admin_role is None:
-        raise RuntimeError("ADMIN role does not exist")
-
-    if existing_admin is None:
-        admin_user = User(
-            username="admin",
-            email="admin@doomsday-pager.local",
-            password_hash = hash_password(admin_password),
-            role=admin_role
+        existing_admin = db.scalar(
+            select(User).where(User.username == "admin")
         )
 
-        db.add(admin_user)
+        admin_password = os.getenv("INITIAL_ADMIN_PASSWORD")
 
-    db.commit()
+        if admin_password is None:
+            raise RuntimeError("INITIAL_ADMIN_PASSWORD is not set")
 
-except Exception:
-    db.rollback()
-    raise
+        if existing_admin is None:
+            admin_user = User(
+                username="admin",
+                email="admin@doomsday-pager.local",
+                password_hash=hash_password(admin_password),
+                role=admin_role,
+            )
 
-finally:
-    db.close()
+            db.add(admin_user)
 
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    seed_database()

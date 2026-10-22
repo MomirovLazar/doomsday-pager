@@ -284,7 +284,7 @@ class IncidentAcknowledgement(Base):
 
     acknowledged_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=False
+        nullable=True
     )
 
     incident: Mapped["Incident"] = relationship()
