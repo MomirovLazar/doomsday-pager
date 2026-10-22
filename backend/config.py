@@ -56,8 +56,8 @@ def load_settings() -> Settings:
     for origin in origins.split(","):
         origin = origin.strip()
 
-    if origin:
-        cors_origins_list.append(origin)
+        if origin:
+            cors_origins_list.append(origin)
 
     cors_origins = tuple(cors_origins_list)
 
