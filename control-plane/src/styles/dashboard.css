@@ -1,0 +1,92 @@
+.dashboard-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+.dashboard-toolbar input {
+  width: 300px;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #242424;
+  color: white;
+}
+.incident-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+}
+.incident-column {
+  background: #202127;
+  border: 1px solid #34353d;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.incident-column h3 {
+  margin-top: 0;
+  font-size: 15px;
+}
+.incident-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+.incident-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  background: #30313a;
+  color: white;
+  border: 1px solid #454650;
+  border-radius: 8px;
+  text-align: left;
+}
+.incident-card:hover {
+  border-color: #818cf8;
+  background: #393b46;
+}
+.incident-card span {
+  font-size: 12px;
+  color: #b8bac7;
+}
+.empty-column {
+  color: #a1a1aa;
+  font-size: 13px;
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  .incident-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .incident-column:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 700px) {
+  .incident-board {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .incident-column:last-child {
+    grid-column: auto;
+  }
+  .incident-column {
+    padding: 12px;
+  }
+  .incident-list {
+    max-height: none;
+  }
+  .dashboard-toolbar,
+  .dashboard-toolbar input {
+    width: 100%;
+  }
+}

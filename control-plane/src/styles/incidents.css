@@ -1,0 +1,238 @@
+.incident-details {
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+  background: #202127;
+  border: 1px solid #34353d;
+  border-radius: 12px;
+}
+.incident-details > button {
+  padding: 10px 16px;
+  color: #eef0f7;
+  background: #30313a;
+  border: 1px solid #454650;
+  border-radius: 8px;
+}
+.incident-details h2 {
+  margin-top: 24px;
+}
+.incident-details p {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.incident-detail-content {
+  margin-top: 24px;
+}
+.incident-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.incident-detail-header h2 {
+  margin: 0;
+}
+.incident-detail-header span {
+  color: #a5a8b8;
+}
+.incident-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+  gap: 24px;
+}
+.incident-detail-main {
+  min-width: 0;
+}
+.incident-detail-main p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.incident-detail-sidebar,
+.incident-comments {
+  width: 100%;
+  min-width: 0;
+  padding: 20px;
+  background: #2b2c34;
+  border: 1px solid #41424c;
+  border-radius: 10px;
+}
+.incident-detail-sidebar {
+  align-self: start;
+}
+.incident-detail-sidebar h3:first-child {
+  margin-top: 0;
+}
+.incident-detail-sidebar h3:not(:first-child) {
+  margin-top: 28px;
+}
+.incident-comments {
+  margin-top: 0;
+}
+.incident-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.incident-actions button,
+.incident-detail-sidebar > button,
+.incident-history button {
+  padding: 12px 16px;
+  background: #383a45;
+  color: white;
+  border: 1px solid #555866;
+  border-radius: 8px;
+  text-align: left;
+}
+.incident-actions button:hover:not(:disabled),
+.incident-detail-sidebar > button:hover:not(:disabled),
+.incident-history button:hover:not(:disabled) {
+  background: #474a58;
+  border-color: #818cf8;
+}
+.incident-detail-sidebar select {
+  display: block;
+  width: 100%;
+  margin: 8px 0 18px;
+  padding: 10px;
+  color: white;
+  background: #24252d;
+  border: 1px solid #555866;
+  border-radius: 8px;
+}
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+.comment-item {
+  padding: 14px;
+  background: #24252d;
+  border: 1px solid #41424c;
+  border-radius: 8px;
+}
+.comment-item p {
+  margin: 10px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comment-item small {
+  color: #a5a8b8;
+}
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+.comment-form textarea {
+  width: 100%;
+  padding: 12px;
+  background: #24252d;
+  color: white;
+  border: 1px solid #41424c;
+  border-radius: 8px;
+  resize: vertical;
+}
+.comment-form button {
+  align-self: flex-end;
+  padding: 10px 18px;
+  color: white;
+  background: #4338ca;
+  border: 1px solid #6366f1;
+  border-radius: 8px;
+}
+.incident-history {
+  margin-top: 24px;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.history-item {
+  padding: 14px;
+  background: #292a33;
+  border: 1px solid #41424c;
+  border-radius: 8px;
+}
+.history-item p {
+  margin: 6px 0;
+}
+.history-item small {
+  color: #a5a8b8;
+}
+@media (max-width: 800px) {
+  .incident-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .incident-details {
+    padding: 16px;
+  }
+}
+
+.assign-me-button {
+  width: 100%;
+  margin: 16px 0;
+  padding: 12px 18px;
+  background: #2563eb;
+  color: #ffffff;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.assign-me-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.assign-me-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.response-button {
+  background: #383a45;
+  color: white;
+  border: 1px solid #555866;
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.incident-actions .response-button.ack-active {
+  background: #2563eb;
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+
+.incident-actions .response-button.unavailable-active {
+  background: #dc2626;
+  border-color: #f87171;
+  color: #ffffff;
+}
+
+.incident-actions .response-button.ack-active:disabled {
+  background: #2563eb;
+  border-color: #60a5fa;
+  color: white;
+  opacity: 1;
+  cursor: default;
+}
+
+.incident-actions .response-button.unavailable-active:disabled {
+  background: #dc2626;
+  border-color: #f87171;
+  color: white;
+  opacity: 1;
+  cursor: default;
+}
