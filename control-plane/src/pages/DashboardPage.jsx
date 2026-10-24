@@ -8,38 +8,35 @@ export default function DashboardPage({
   error,
   onOpenIncident,
 }) {
-  const searchText = search.toLowerCase().trim();
+  const query = search.trim().toLowerCase();
 
-  const filteredIncidents = incidents.filter((incident) => {
-    const titleMatches = incident.title.toLowerCase().includes(searchText);
-
-    const idMatches = String(incident.id).includes(searchText);
-
-    return titleMatches || idMatches;
-  });
+  const filtered = incidents.filter(
+    (item) =>
+      item.title?.toLowerCase().includes(query) ||
+      String(item.id).includes(query),
+  );
 
   return (
-    <>
-      <h2>Incident dashboard</h2>
+    <section className="dashboard-page final-dashboard">
+      <div className="board-panel">
+        <div className="board-toolbar">
+          <h2>Incident board</h2>
 
-      <div className="dashboard-toolbar">
-        <input
-          type="search"
-          placeholder="Search by title or ID..."
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          aria-label="Search incidents"
-        />
+          <input
+            type="search"
+            aria-label="Search incidents"
+            placeholder="Search incidents..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+        </div>
+
+        {loading && <p>Loading incidents...</p>}
+
+        {error && <p role="alert">{error}</p>}
+
+        <IncidentBoard incidents={filtered} onOpenIncident={onOpenIncident} />
       </div>
-
-      {loading && <p>Loading incidents...</p>}
-
-      {error && <p role="alert">{error}</p>}
-
-      <IncidentBoard
-        incidents={filteredIncidents}
-        onOpenIncident={onOpenIncident}
-      />
-    </>
+    </section>
   );
 }

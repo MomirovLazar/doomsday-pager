@@ -8,38 +8,39 @@ export default function LoginPage({
   error,
 }) {
   return (
-    <>
-      <h2>Control Plane Login</h2>
+    <form className="login-form" onSubmit={onSubmit}>
+      <h2>Welcome back</h2>
 
-      <form onSubmit={onSubmit}>
-        <div>
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(event) => onUsernameChange(event.target.value)}
-            required
-          />
-        </div>
+      <p>Sign in to the incident control center</p>
 
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => onPasswordChange(event.target.value)}
-            required
-          />
-        </div>
+      <label>
+        Username
+        <input
+          autoComplete="username"
+          required
+          value={username}
+          onChange={(e) => onUsernameChange(e.target.value)}
+          placeholder="Username"
+        />
+      </label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+      <label>
+        Password
+        <input
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => onPasswordChange(e.target.value)}
+          placeholder="Password"
+        />
+      </label>
 
       {error && <p role="alert">{error}</p>}
-    </>
+
+      <button className="primary-button" type="submit" disabled={loading}>
+        {loading ? "Signing in…" : "Sign in"}
+      </button>
+    </form>
   );
 }

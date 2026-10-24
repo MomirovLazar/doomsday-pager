@@ -1,0 +1,212 @@
+/* Final incident board and response layout. Load AFTER operations.css. */
+.online-indicator {
+  display: none !important;
+}
+.ops-topbar {
+  height: 44px;
+  margin-bottom: 2px;
+}
+.final-dashboard .board-panel {
+  margin-top: 0;
+}
+.final-dashboard .incident-board {
+  gap: 22px;
+}
+.final-incident-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.final-incident-state {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #16283d;
+  border: 1px solid #304963;
+  border-radius: 10px;
+  padding: 16px;
+}
+.final-state-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+}
+.final-state-item > span {
+  color: #a5b9d3;
+}
+.final-state-item > strong {
+  color: #f4f8ff;
+}
+.final-status {
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  background: #29415d;
+}
+.final-status.status-new {
+  color: #ffb735;
+  background: #403322;
+}
+.final-status.status-in_progress {
+  color: #74b5ff;
+  background: #1b3554;
+}
+.final-status.status-resolved {
+  color: #4de4a6;
+  background: #123f35;
+}
+.final-response-section {
+  background: #101d2d;
+  border: 1px solid #2a4059;
+  border-radius: 11px;
+  padding: 17px;
+}
+.final-response-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.final-response-title h3 {
+  margin: 0 0 5px;
+  font-size: 15px;
+}
+.final-response-title p {
+  margin: 0;
+  font-size: 12px;
+  color: #a8b9d0;
+}
+.final-response-title small {
+  color: #a8b9d0;
+}
+.final-response-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.final-response-buttons .final-action-btn {
+  flex: 1 1 150px;
+  min-width: 0;
+  min-height: 43px;
+  padding: 10px 12px !important;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  white-space: normal;
+  line-height: 1.35;
+}
+.final-response-buttons .final-assign {
+  background: #176ad5 !important;
+  color: #fff !important;
+  border: 1px solid #4d9bff !important;
+}
+.final-response-buttons .final-ack {
+  background: #103e34 !important;
+  color: #7bf1b9 !important;
+  border: 1px solid #14cb8c !important;
+}
+.final-response-buttons .final-unavailable {
+  background: #43212e !important;
+  color: #ff9aa7 !important;
+  border: 1px solid #ef4562 !important;
+}
+.final-response-buttons .final-resolve {
+  background: #123f35 !important;
+  color: #7bf1b9 !important;
+  border: 1px solid #14cb8c !important;
+}
+.final-response-buttons .final-help,
+.final-response-buttons .final-join {
+  background: #1b3554 !important;
+  color: #c7e3ff !important;
+  border: 1px solid #4d9bff !important;
+}
+.final-response-buttons button:disabled {
+  opacity: 0.55;
+}
+.final-muted {
+  margin: 8px 0 0;
+}
+.final-responders {
+  padding: 8px 3px;
+}
+.final-responders h3 {
+  margin-bottom: 5px;
+}
+@media (max-width: 600px) {
+  .final-incident-state {
+    grid-template-columns: 1fr;
+  }
+  .final-response-buttons .final-action-btn {
+    flex-basis: 100%;
+  }
+}
+
+/* Status counters */
+.column-heading > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  border: 1px solid;
+}
+
+.column-new .column-heading > span {
+  background: #3a2b13;
+  border-color: #9b6a19;
+  color: #ffb52e;
+}
+
+.column-in_progress .column-heading > span {
+  background: #142f50;
+  border-color: #2766ac;
+  color: #60a5fa;
+}
+
+.column-resolved .column-heading > span {
+  background: #103b30;
+  border-color: #1d8667;
+  color: #34d399;
+}
+
+/* Header and user profile */
+.ops-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 60px;
+  height: auto;
+  padding: 8px 18px 8px 0;
+  margin-bottom: 18px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #142438;
+  border: 1px solid #2b415a;
+  border-radius: 12px;
+}
+
+.user-chip strong,
+.user-chip small {
+  white-space: nowrap;
+}
+
+.user-avatar {
+  flex-shrink: 0;
+}

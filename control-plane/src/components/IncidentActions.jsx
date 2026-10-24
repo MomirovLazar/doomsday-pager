@@ -7,149 +7,141 @@ export default function IncidentActions({
   onChangeStatus,
   onRespond,
 }) {
-  const canManageIncident =
+  const canManage =
     currentUser?.role === "SYSTEM_ADMIN" || currentUser?.role === "ADMIN";
 
   const isOwner = incident.owner?.id === currentUser?.id;
 
-  const myResponse = incident.my_response;
+  const response = incident.my_response;
 
-  const isAcknowledged = myResponse === "ACKNOWLEDGED";
-  const isUnavailable = myResponse === "UNAVAILABLE";
+  const acknowledged = response === "ACKNOWLEDGED";
+
+  const unavailable = response === "UNAVAILABLE";
 
   const isResponder = incident.responders?.some(
-    (responder) => responder.id === currentUser?.id,
+    (r) => r.id === currentUser?.id,
   );
 
-  const canResolve =
-    canManageIncident && isOwner && incident.status === "IN_PROGRESS";
+  const canAssign = canManage && incident.status === "NEW" && !incident.owner;
+  const canResolve = canManage && isOwner && incident.status === "IN_PROGRESS";
+  const canRespond = incident.status === "NEW" && !incident.owner;
 
-  const canAssign =
-    canManageIncident && incident.status === "NEW" && !incident.owner;
   return (
-    <>
-      <h3>Actions</h3>
+    <div className="final-incident-actions">
+      <div className="final-incident-state">
+        <div className="final-state-item">
+          <span>Incident status</span>
 
-      {actionError && <p role="alert">{actionError}</p>}
-
-      {canAssign && (
-        <button
-          type="button"
-          className="assign-me-button"
-          disabled={actionLoading}
-          onClick={() => onChangeStatus("claim")}
-        >
-          {actionLoading ? "ASSIGNING..." : "ASSIGN TO ME"}
-        </button>
-      )}
-
-      {incident.my_response && (
-        <p>
-          Your response: <strong>{incident.my_response}</strong>
-        </p>
-      )}
-
-      <p>
-        Status: <strong>{incident.status}</strong>
-      </p>
-
-      <p>
-        Assigned to: <strong>{incident.owner?.username || "Unassigned"}</strong>
-      </p>
-
-      <select
-        id="incident-status"
-        value={incident.status}
-        disabled={
-          actionLoading ||
-          incident.status === "RESOLVED" ||
-          !canManageIncident ||
-          (incident.status === "IN_PROGRESS" && !canResolve)
-        }
-        onChange={(event) => {
-          const nextStatus = event.target.value;
-
-          if (incident.status === "NEW" && nextStatus === "IN_PROGRESS") {
-            onChangeStatus("claim");
-          }
-
-          if (canResolve && nextStatus === "RESOLVED") {
-            onChangeStatus("resolve");
-          }
-        }}
-      >
-        <option value={incident.status}>{incident.status}</option>
-
-        {canManageIncident && incident.status === "NEW" && (
-          <option value="IN_PROGRESS">IN_PROGRESS</option>
-        )}
-
-        {canResolve && <option value="RESOLVED">RESOLVED</option>}
-      </select>
-
-      {incident.status === "NEW" && !incident.owner && (
-        <div className="incident-actions">
-          <button
-            type="button"
-            className={
-              myResponse === "ACKNOWLEDGED"
-                ? "response-button ack-active"
-                : "response-button"
-            }
-            disabled={responseLoading || isAcknowledged}
-            onClick={() => onRespond("acknowledge")}
+          <strong
+            className={`final-status status-${incident.status?.toLowerCase()}`}
           >
-            ACKNOWLEDGE
-          </button>
-
-          <button
-            type="button"
-            className={
-              myResponse === "UNAVAILABLE"
-                ? "response-button unavailable-active"
-                : "response-button"
-            }
-            disabled={responseLoading || isAcknowledged || isUnavailable}
-            onClick={() => onRespond("unavailable")}
-          >
-            UNAVAILABLE
-          </button>
+            {incident.status?.replaceAll("_", " ")}
+          </strong>
         </div>
-      )}
-      {incident.status === "IN_PROGRESS" && canManageIncident && isOwner && (
-        <button
-          type="button"
-          disabled={actionLoading || incident.help_requested}
-          onClick={() => onChangeStatus("request-help")}
-        >
-          {incident.help_requested ? "HELP REQUESTED" : "REQUEST HELP"}
-        </button>
-      )}
+        <div className="final-state-item">
+          <span>Assigned to</span>
 
-      {incident.status === "IN_PROGRESS" &&
-        canManageIncident &&
-        !isOwner &&
-        !isResponder && (
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={() => onChangeStatus("join")}
-          >
-            JOIN INCIDENT
-          </button>
+          <strong>{incident.owner?.username || "Unassigned"}</strong>
+        </div>
+      </div>
+      <div className="final-response-section">
+        <div className="final-response-title">
+          <div>
+            <h3>Response actions</h3>
+
+            <p>Choose your response to this incident</p>
+          </div>
+
+          {incident.status === "NEW" && !incident.owner && response && (
+            <small>Your response: {response.replaceAll("_", " ")}</small>
+          )}
+        </div>
+
+        {actionError && <p role="alert">{actionError}</p>}
+
+        <div className="final-response-buttons">
+          {canAssign && (
+            <button
+              type="button"
+              className="final-action-btn final-assign"
+              disabled={actionLoading}
+              onClick={() => onChangeStatus("claim")}
+            >
+              {actionLoading ? "ASSIGNING..." : "ASSIGN TO ME"}
+            </button>
+          )}
+
+          {canRespond && (
+            <button
+              type="button"
+              className="final-action-btn final-ack"
+              disabled={responseLoading || acknowledged}
+              onClick={() => onRespond("acknowledge")}
+            >
+              {acknowledged ? "ACKNOWLEDGED" : "ACKNOWLEDGE"}
+            </button>
+          )}
+
+          {canRespond && (
+            <button
+              type="button"
+              className="final-action-btn final-unavailable"
+              disabled={responseLoading || acknowledged || unavailable}
+              onClick={() => onRespond("unavailable")}
+            >
+              {unavailable ? "MARKED UNAVAILABLE" : "MARK AS UNAVAILABLE"}
+            </button>
+          )}
+
+          {canResolve && (
+            <button
+              type="button"
+              className="final-action-btn final-resolve"
+              disabled={actionLoading}
+              onClick={() => onChangeStatus("resolve")}
+            >
+              {actionLoading ? "RESOLVING..." : "RESOLVE INCIDENT"}
+            </button>
+          )}
+
+          {incident.status === "IN_PROGRESS" && canManage && isOwner && (
+            <button
+              type="button"
+              className="final-action-btn final-help"
+              disabled={actionLoading || incident.help_requested}
+              onClick={() => onChangeStatus("request-help")}
+            >
+              {incident.help_requested ? "HELP REQUESTED" : "REQUEST HELP"}
+            </button>
+          )}
+
+          {incident.status === "IN_PROGRESS" &&
+            canManage &&
+            !isOwner &&
+            !isResponder && (
+              <button
+                type="button"
+                className="final-action-btn final-join"
+                disabled={actionLoading}
+                onClick={() => onChangeStatus("join")}
+              >
+                JOIN INCIDENT
+              </button>
+            )}
+        </div>
+
+        {incident.status === "RESOLVED" && (
+          <p className="final-muted">This incident is resolved.</p>
         )}
+      </div>
 
       {incident.responders?.length > 0 && (
-        <div>
+        <div className="final-responders">
           <h3>Responders</h3>
 
-          {incident.responders.map((responder) => (
-            <p key={responder.id}>{responder.username}</p>
-          ))}
+          <p>{incident.responders.map((r) => r.username).join(", ")}</p>
         </div>
       )}
-
-      {incident.status === "RESOLVED" && <p>Incident resolved</p>}
-    </>
+    </div>
   );
 }

@@ -6,19 +6,17 @@ export default function Navigation({
   return (
     <nav className="control-navigation">
       <button
-        type="button"
         className={activePage === "dashboard" ? "nav-active" : ""}
         onClick={onDashboardClick}
       >
-        Dashboard
+        ⌂ &nbsp; Dashboard
       </button>
 
       <button
-        type="button"
         className={activePage === "create" ? "nav-active" : ""}
         onClick={onCreateClick}
       >
-        + Create Incident
+        ⊞ &nbsp; Create Incident
       </button>
     </nav>
   );

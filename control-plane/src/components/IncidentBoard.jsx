@@ -2,43 +2,46 @@ import IncidentCard from "./IncidentCard";
 
 export default function IncidentBoard({ incidents, onOpenIncident }) {
   const columns = [
-    {
-      title: "NEW",
-      items: incidents.filter((incident) => incident.status === "NEW"),
-    },
-    {
-      title: "IN PROGRESS",
-      items: incidents.filter((incident) => incident.status === "IN_PROGRESS"),
-    },
-    {
-      title: "RESOLVED",
-      items: incidents.filter((incident) => incident.status === "RESOLVED"),
-    },
+    { title: "NEW INCIDENTS", status: "NEW" },
+    { title: "IN PROGRESS", status: "IN_PROGRESS" },
+    { title: "RESOLVED", status: "RESOLVED" },
   ];
 
   return (
     <div className="incident-board">
-      {columns.map((column) => (
-        <div className="incident-column" key={column.title}>
-          <h3>
-            {column.title} ({column.items.length})
-          </h3>
+      {columns.map((column) => {
+        const items = incidents.filter((item) => item.status === column.status);
 
-          <div className="incident-list">
-            {column.items.map((incident) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                onOpen={onOpenIncident}
-              />
-            ))}
+        return (
+          <div
+            className={`incident-column column-${column.status.toLowerCase()}`}
+            key={column.status}
+          >
+            <div className="column-heading">
+              <h3>
+                <i />
+                {column.title}
+              </h3>
 
-            {column.items.length === 0 && (
-              <p className="empty-column">No incidents</p>
-            )}
+              <span>{items.length}</span>
+            </div>
+
+            <div className="incident-list">
+              {items.map((item) => (
+                <IncidentCard
+                  key={item.id}
+                  incident={item}
+                  onOpen={onOpenIncident}
+                />
+              ))}
+
+              {items.length === 0 && (
+                <p className="empty-column">No incidents</p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

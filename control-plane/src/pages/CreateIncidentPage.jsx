@@ -13,94 +13,92 @@ export default function CreateIncidentPage({
   onCancel,
 }) {
   return (
-    <div className="create-incident-page">
-      <h2>Create Incident</h2>
-      <p>Create a new incident for the response team</p>
+    <section className="create-page">
+      <div className="page-heading">
+        <h1>Create Incident</h1>
 
-      <form className="create-incident-form" onSubmit={onSubmit}>
-        <div className="create-form-row">
-          <div className="create-form-field">
-            <label htmlFor="incident-type">Incident Type</label>
+        <p>Report a new incident to notify the response team</p>
+      </div>
 
-            <select
-              id="incident-type"
-              value={incidentType}
-              onChange={(event) => onIncidentTypeChange(event.target.value)}
+      <form className="create-panel" onSubmit={onSubmit}>
+        <div className="create-grid">
+          <label className="field wide">
+            Incident title <em>*</em>
+            <input
               required
-            >
-              <option value="">Select type</option>
-              <option value="NETWORK">Network</option>
-              <option value="SERVER">Server</option>
-              <option value="DATABASE">Database</option>
-              <option value="SECURITY">Security</option>
-              <option value="APPLICATION">Application</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
+              maxLength={200}
+              value={incidentTitle}
+              onChange={(e) => onIncidentTitleChange(e.target.value)}
+              placeholder="Enter a short descriptive title"
+            />
+          </label>
 
-          <div className="create-form-field">
-            <label htmlFor="incident-priority">Priority</label>
-
+          <label className="field">
+            Priority <em>*</em>
             <select
-              id="incident-priority"
+              required
               value={incidentPriority}
-              onChange={(event) => onIncidentPriorityChange(event.target.value)}
-              required
+              onChange={(e) => onIncidentPriorityChange(e.target.value)}
             >
               <option value="">Select priority</option>
-              <option value="LOW">LOW</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="HIGH">HIGH</option>
-              <option value="CRITICAL">CRITICAL</option>
+              {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
             </select>
-          </div>
+          </label>
 
-          <div className="create-form-field">
-            <label htmlFor="incident-title">Incident title</label>
-
-            <input
-              id="incident-title"
-              type="text"
-              value={incidentTitle}
-              onChange={(event) => onIncidentTitleChange(event.target.value)}
-              placeholder="Briefly describe the problem..."
-              maxLength={200}
-              required
-            />
-          </div>
-
-          <div className="create-form-field">
-            <label htmlFor="incident-description">Description</label>
-
+          <label className="field full">
+            Description <em>*</em>
             <textarea
-              id="incident-description"
-              value={incidentDescription}
-              onChange={(event) =>
-                onIncidentDescriptionChange(event.target.value)
-              }
-              placeholder="What happened? Describe the problem."
-              rows={6}
               required
+              rows={7}
+              value={incidentDescription}
+              onChange={(e) => onIncidentDescriptionChange(e.target.value)}
+              placeholder="Describe what happened, which services are affected, and any relevant details…"
             />
-          </div>
+          </label>
 
-          <div className="create-form-actions">
-            {createError && <p role="alert">{createError}</p>}
-
-            <button type="button" onClick={onCancel}>
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="create-submit-button"
-              disabled={createLoading}
+          <label className="field full">
+            Incident type <em>*</em>
+            <select
+              required
+              value={incidentType}
+              onChange={(e) => onIncidentTypeChange(e.target.value)}
             >
-              {createLoading ? "Creating..." : "Create Incident"}
-            </button>
-          </div>
+              <option value="">Select type</option>
+              {[
+                "NETWORK",
+                "SERVER",
+                "DATABASE",
+                "SECURITY",
+                "APPLICATION",
+                "OTHER",
+              ].map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="create-footer">
+          {createError && <p role="alert">{createError}</p>}
+
+          <button type="button" className="secondary-button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="primary-button"
+            disabled={createLoading}
+          >
+            {createLoading ? "Creating…" : "＋ Create Incident"}
+          </button>
         </div>
       </form>
-    </div>
+    </section>
   );
 }
